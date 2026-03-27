@@ -795,6 +795,7 @@ main {
   width: 0%;
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 </head>
 <body>
 
@@ -1295,9 +1296,14 @@ function renderPPT(p) {
   }).join('');
 
   return `
-    <div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:14px;color:var(--muted)">${(p.slides||[]).length} slides ready</span>
-      <button class="action-btn" onclick="copySlides()">⬇ Copy Slide Text</button>
+    <div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <span style="font-size:14px;color:var(--muted)">${(p.slides||[]).length} slides · Python Innovator template</span>
+      <div style="display:flex;gap:8px">
+        <button class="action-btn" onclick="copySlides()">📋 Copy Text</button>
+        <button class="action-btn primary" id="pptxDownloadBtn" onclick="downloadPPTX()">
+          <span id="pptxBtnLabel">⬇ Download .pptx</span>
+        </button>
+      </div>
     </div>
     <div class="slides-grid">${slides}</div>
     <div id="slideModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="closeSlideModal(event)">
@@ -1306,6 +1312,135 @@ function renderPPT(p) {
         <button onclick="document.getElementById('slideModal').style.display='none'" style="margin-top:20px;background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:8px 20px;border-radius:8px;cursor:pointer;font-family:var(--font)">Close</button>
       </div>
     </div>`;
+}
+
+// ── PPTX BUILDER — Python Innovator Template ─────────────────────────────
+async function downloadPPTX() {
+  if (!lastGenerated?.ppt?.slides) return;
+  const btn = document.getElementById('pptxDownloadBtn');
+  const label = document.getElementById('pptxBtnLabel');
+  btn.disabled = true;
+  label.textContent = '⏳ Building...';
+
+  try {
+    const pres = new PptxGenJS();
+    pres.layout = 'LAYOUT_16x9';
+    pres.title = lastGenerated.topic || 'Python Lesson';
+
+    // ── colors
+    const C = {
+      navy:      '1E1EAA',
+      gold:      'FFC300',
+      dark:      '1A1A2E',
+      white:     'FFFFFF',
+      codeBlack: '1E1E2E',
+      codeCyan:  '43E8D8',
+      red:       'E53E3E',
+    };
+
+    // ── helpers
+    function chrome(sl) {
+      sl.addShape('rect', { x:0.28, y:0,    w:0.07, h:5.625, fill:{color:C.gold}, line:{color:C.gold} });
+      sl.addShape('rect', { x:0.55, y:0.55, w:0.9,  h:0.07,  fill:{color:C.gold}, line:{color:C.gold} });
+      sl.addShape('rect', { x:8.2,  y:0.45, w:1.55, h:0.12,  fill:{color:C.gold}, line:{color:C.gold} });
+    }
+    function sectionLabel(sl, txt) {
+      sl.addText(txt, { x:7.0, y:0.1, w:2.7, h:0.38, fontSize:14, fontFace:'Arial', color:C.dark, align:'right', margin:0 });
+      sl.addShape('rect', { x:8.2, y:0.55, w:1.55, h:0.07, fill:{color:C.gold}, line:{color:C.gold} });
+    }
+    function slideTitle(sl, txt, y=0.62) {
+      sl.addText(txt, { x:0.72, y, w:8.5, h:0.55, fontSize:22, fontFace:'Arial Black', color:C.navy, bold:true, align:'left', margin:0 });
+    }
+    function codeBlock(sl, txt, x, y, w, h) {
+      sl.addShape('rect', { x, y, w, h, fill:{color:C.codeBlack}, line:{color:'2D2D4A', pt:1} });
+      sl.addText(txt, { x:x+0.1, y:y+0.08, w:w-0.2, h:h-0.16, fontSize:11, fontFace:'Courier New', color:C.codeCyan, align:'left', valign:'top', margin:0 });
+    }
+
+    const slides = lastGenerated.ppt.slides;
+    const topic  = lastGenerated.topic || 'Python';
+
+    // ── TITLE SLIDE
+    {
+      const sl = pres.addSlide();
+      sl.background = { color:C.white };
+      sl.addShape('rect', { x:0.28, y:0, w:0.07, h:5.625, fill:{color:C.gold}, line:{color:C.gold} });
+      sl.addShape('rect', { x:7.8, y:0.55, w:1.95, h:0.12, fill:{color:C.gold}, line:{color:C.gold} });
+      sl.addText('PYTHON', {
+        x:0.75, y:1.5, w:8, h:1.05,
+        fontSize:58, fontFace:'Arial Black', color:C.navy, bold:true, align:'left', margin:0, charSpacing:3,
+      });
+      sl.addText('INNOVATOR', {
+        x:0.75, y:2.55, w:9, h:1.05,
+        fontSize:58, fontFace:'Arial Black', color:C.gold, bold:true, align:'left', margin:0, charSpacing:3,
+      });
+      sl.addText(topic, {
+        x:0.75, y:3.7, w:8, h:0.5,
+        fontSize:18, fontFace:'Arial', color:C.dark, align:'left', margin:0,
+      });
+      sl.addText('❯ Start Slide', { x:7.5, y:4.95, w:2.2, h:0.38, fontSize:12, fontFace:'Arial', color:C.dark, align:'right', margin:0 });
+    }
+
+    // ── CONTENT SLIDES from AI
+    slides.forEach((s, idx) => {
+      const sl = pres.addSlide();
+      sl.background = { color:C.white };
+      chrome(sl);
+      sectionLabel(sl, s.type === 'intro' ? 'Overview' : s.type === 'code' ? 'Code' : s.type === 'exercise' ? 'Practice' : s.type === 'summary' ? 'Summary' : 'Lesson');
+      slideTitle(sl, s.title);
+
+      const hasCode    = !!s.code;
+      const bullets    = s.bullets || [];
+      const hasBullets = bullets.length > 0;
+
+      if (hasCode && hasBullets) {
+        // Two-column: bullets left, code right
+        sl.addText(
+          bullets.map((b,i) => ({ text: b, options: { bullet:true, breakLine: i < bullets.length-1 } })),
+          { x:0.72, y:1.35, w:4.4, h:3.6, fontSize:13, fontFace:'Arial', color:C.dark, margin:0, valign:'top' }
+        );
+        codeBlock(sl, s.code, 5.3, 1.35, 4.35, 3.6);
+      } else if (hasCode) {
+        codeBlock(sl, s.code, 0.72, 1.35, 9.0, 3.8);
+      } else if (hasBullets) {
+        sl.addText(
+          bullets.map((b,i) => ({ text: b, options: { bullet:true, breakLine: i < bullets.length-1 } })),
+          { x:0.72, y:1.35, w:8.8, h:3.8, fontSize:14, fontFace:'Arial', color:C.dark, margin:0, valign:'top' }
+        );
+      }
+
+      // Speaker notes
+      if (s.speaker_notes) {
+        sl.addNotes(s.speaker_notes);
+      }
+    });
+
+    // ── END SLIDE
+    {
+      const sl = pres.addSlide();
+      sl.background = { color:C.white };
+      sl.addShape('rect', { x:0.28, y:0, w:0.07, h:5.625, fill:{color:C.gold}, line:{color:C.gold} });
+      sl.addShape('rect', { x:7.8, y:0.55, w:1.95, h:0.12, fill:{color:C.gold}, line:{color:C.gold} });
+      sl.addText('THANK YOU', {
+        x:0.75, y:1.55, w:8, h:1.1,
+        fontSize:56, fontFace:'Arial Black', color:C.navy, bold:true, align:'left', margin:0, charSpacing:3,
+      });
+      sl.addText("THAT'S ALL FOR TODAY", {
+        x:0.75, y:2.7, w:9, h:1.0,
+        fontSize:38, fontFace:'Arial Black', color:C.gold, bold:true, align:'left', margin:0, charSpacing:2,
+      });
+      sl.addText('❯ End Slide', { x:7.5, y:4.95, w:2.2, h:0.38, fontSize:12, fontFace:'Arial', color:C.dark, align:'right', margin:0 });
+    }
+
+    const filename = (lastGenerated.topic || 'Python_Lesson').replace(/\s+/g,'_') + '_PyTeach.pptx';
+    await pres.writeFile({ fileName: filename });
+    label.textContent = '✓ Downloaded!';
+    setTimeout(() => { label.textContent = '⬇ Download .pptx'; btn.disabled = false; }, 2500);
+
+  } catch(e) {
+    label.textContent = '⚠ Error';
+    setTimeout(() => { label.textContent = '⬇ Download .pptx'; btn.disabled = false; }, 2000);
+    console.error(e);
+  }
 }
 
 function renderGame(g) {
