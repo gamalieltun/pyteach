@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PyTeach — AI Lesson Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #111118;
+  --card: #16161f;
+  --border: #2a2a38;
+  --accent: #6c63ff;
+  --accent2: #ff6b9d;
+  --accent3: #43e8d8;
+  --text: #e8e8f0;
+  --muted: #7878a0;
+  --code-bg: #0d0d14;
+  --success: #43e8a0;
+  --warning: #ffb84d;
+  --font: 'Space Grotesk', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --display: 'Syne', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Grain overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+/* Nav */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,10,15,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.logo {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.nav-pills {
+  display: flex; gap: 4px;
+}
+.nav-pill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.2s;
+  font-family: var(--font);
+}
+.nav-pill:hover { color: var(--text); background: var(--surface); }
+.nav-pill.active { color: var(--accent); background: rgba(108,99,255,0.15); }
+
+/* Hero */
+.hero {
+  text-align: center;
+  padding: 80px 40px 60px;
+  position: relative;
+  z-index: 1;
+}
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(108,99,255,0.3);
+  background: rgba(108,99,255,0.08);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+.hero-eyebrow::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.4)} }
+h1 {
+  font-family: var(--display);
+  font-size: clamp(42px, 6vw, 72px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -2px;
+  margin-bottom: 20px;
+}
+h1 span {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 60%, var(--accent3) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero-sub {
+  font-size: 18px;
+  color: var(--muted);
+  max-width: 540px;
+  margin: 0 auto 48px;
+  line-height: 1.6;
+}
+
+/* Input area */
+.input-container {
+  max-width: 700px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+.topic-input-wrap {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 24px;
+  transition: border-color 0.2s;
+}
+.topic-input-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(108,99,255,0.1);
+}
+.input-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+textarea#topicInput {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font);
+  font-size: 16px;
+  color: var(--text);
+  resize: none;
+  line-height: 1.5;
+  min-height: 60px;
+}
+textarea#topicInput::placeholder { color: var(--muted); }
+.input-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.audience-toggle {
+  display: flex;
+  gap: 6px;
+}
+.aud-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.15s;
+  font-family: var(--font);
+}
+.aud-btn.active { background: rgba(108,99,255,0.15); border-color: var(--accent); color: var(--accent); }
+.aud-btn:hover:not(.active) { border-color: var(--muted); color: var(--text); }
+
+.generate-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.generate-btn:hover { background: #7a72ff; transform: translateY(-1px); }
+.generate-btn:active { transform: translateY(0); }
+.generate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-icon { font-size: 16px; }
+
+/* Output type selector */
+.output-types {
+  max-width: 700px;
+  margin: 24px auto 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.type-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.type-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.type-card.active::before { opacity: 1; }
+.type-card:hover { border-color: var(--muted); }
+.type-card.active { border-color: var(--accent); }
+.type-card[data-type="curriculum"]::before { background: linear-gradient(135deg, rgba(108,99,255,0.12), transparent); }
+.type-card[data-type="lesson"]::before { background: linear-gradient(135deg, rgba(67,232,216,0.12), transparent); }
+.type-card[data-type="ppt"]::before { background: linear-gradient(135deg, rgba(255,107,157,0.12), transparent); }
+.type-card[data-type="game"]::before { background: linear-gradient(135deg, rgba(255,184,77,0.12), transparent); }
+.type-card[data-type="lecture"]::before { background: linear-gradient(135deg, rgba(67,232,160,0.12), transparent); }
+.type-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+  position: relative; z-index: 1;
+}
+.type-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: relative; z-index: 1;
+  transition: color 0.15s;
+}
+.type-card.active .type-label { color: var(--text); }
+.type-check {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  z-index: 1;
+}
+.type-card.active .type-check { display: flex; }
+
+/* Main content */
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 60px 40px;
+  position: relative; z-index: 1;
+}
+
+/* Output section */
+#outputSection { display: none; }
+#outputSection.visible { display: block; }
+
+.output-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+.output-title {
+  font-family: var(--display);
+  font-size: 28px;
+  font-weight: 700;
+}
+.output-actions {
+  display: flex;
+  gap: 8px;
+}
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  transition: all 0.15s;
+  font-family: var(--font);
+}
+.action-btn:hover { border-color: var(--muted); color: var(--text); }
+.action-btn.primary { background: rgba(108,99,255,0.15); border-color: var(--accent); color: var(--accent); }
+
+/* Content cards */
+.content-grid { display: grid; gap: 20px; }
+.content-grid.two-col { grid-template-columns: 1fr 1fr; }
+.content-grid.three-col { grid-template-columns: 1fr 1fr 1fr; }
+
+.content-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  animation: slideUp 0.4s ease both;
+}
+@keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+.content-card:nth-child(2) { animation-delay: 0.06s; }
+.content-card:nth-child(3) { animation-delay: 0.12s; }
+.content-card:nth-child(4) { animation-delay: 0.18s; }
+
+.card-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.tag-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+.card-body { padding: 24px; }
+
+/* Markdown-style content */
+.md-content h2 { font-size: 20px; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+.md-content h3 { font-size: 16px; font-weight: 600; margin: 20px 0 8px; color: var(--text); }
+.md-content p { font-size: 15px; line-height: 1.7; color: #c0c0d8; margin-bottom: 12px; }
+.md-content ul, .md-content ol { margin: 0 0 16px 20px; }
+.md-content li { font-size: 15px; line-height: 1.6; color: #c0c0d8; margin-bottom: 4px; }
+.md-content strong { color: var(--text); font-weight: 600; }
+.md-content code {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--code-bg);
+  color: var(--accent3);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.md-content pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+.md-content pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.md-content blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 16px;
+  margin: 16px 0;
+  color: var(--muted);
+  font-style: italic;
+}
+.md-content hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+.md-content table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+.md-content th {
+  background: rgba(108,99,255,0.1);
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  border: 1px solid var(--border);
+}
+.md-content td { padding: 8px 14px; border: 1px solid var(--border); color: #c0c0d8; }
+.md-content td:first-child { font-family: var(--mono); font-size: 13px; color: var(--accent3); }
+
+/* PPT slides preview */
+.slides-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.slide-preview {
+  aspect-ratio: 16/9;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.slide-preview:hover { border-color: var(--accent); transform: translateY(-2px); }
+.slide-num {
+  position: absolute;
+  bottom: 8px; right: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+.slide-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.slide-bullet {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.slide-accent-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+}
+/* Slide 1: intro */
+.slide-preview:nth-child(1) .slide-accent-bar { background: var(--accent); }
+.slide-preview:nth-child(2) .slide-accent-bar { background: var(--accent3); }
+.slide-preview:nth-child(3) .slide-accent-bar { background: var(--accent2); }
+.slide-preview:nth-child(4) .slide-accent-bar { background: var(--warning); }
+.slide-preview:nth-child(5) .slide-accent-bar { background: var(--success); }
+.slide-preview:nth-child(6) .slide-accent-bar { background: var(--accent); }
+
+/* Game */
+.game-card {
+  background: linear-gradient(135deg, rgba(255,184,77,0.06), rgba(255,107,157,0.06));
+  border: 1px solid rgba(255,184,77,0.2);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.game-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+.badge-quiz { background: rgba(108,99,255,0.2); color: var(--accent); }
+.badge-challenge { background: rgba(255,184,77,0.2); color: var(--warning); }
+.badge-debug { background: rgba(255,107,157,0.2); color: var(--accent2); }
+.badge-fill { background: rgba(67,232,216,0.2); color: var(--accent3); }
+
+.game-q { font-size: 15px; font-weight: 500; margin-bottom: 14px; line-height: 1.5; }
+.game-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.game-opt {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--mono);
+  color: var(--text);
+  background: var(--code-bg);
+}
+.game-opt:hover { border-color: var(--accent); background: rgba(108,99,255,0.1); }
+.game-opt.correct { border-color: var(--success); background: rgba(67,232,160,0.1); color: var(--success); }
+.game-opt.wrong { border-color: var(--accent2); background: rgba(255,107,157,0.1); color: var(--accent2); }
+
+.code-fill {
+  font-family: var(--mono);
+  font-size: 14px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+.fill-blank {
+  display: inline-block;
+  border-bottom: 2px solid var(--accent);
+  min-width: 80px;
+  height: 22px;
+  background: rgba(108,99,255,0.1);
+  border-radius: 4px;
+  padding: 0 8px;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: all 0.15s;
+  position: relative;
+}
+.fill-blank.filled { border-color: var(--success); background: rgba(67,232,160,0.1); }
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(90deg, var(--card) 25%, var(--surface) 50%, var(--card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.skel-line { height: 14px; margin-bottom: 10px; }
+.skel-line.short { width: 40%; }
+.skel-line.med { width: 70%; }
+.skel-line.full { width: 100%; }
+.skel-block { height: 80px; margin-bottom: 12px; }
+
+/* Loading overlay */
+.loading-overlay {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 40px;
+  text-align: center;
+}
+.loading-overlay.active { display: flex; }
+.loading-ring {
+  width: 56px; height: 56px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 24px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 16px; color: var(--muted); }
+.loading-status {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  margin-top: 8px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+.tab {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Lecture */
+.lecture-section { margin-bottom: 32px; }
+.lecture-section h3 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lecture-section h3::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Step indicators */
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.step {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.step-num {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: rgba(108,99,255,0.15);
+  border: 1px solid rgba(108,99,255,0.3);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: var(--mono);
+}
+.step-content { flex: 1; }
+.step-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.step-desc { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 80px 40px;
+  color: var(--muted);
+}
+.empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+.empty-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+.empty-sub { font-size: 15px; }
+
+/* Curriculum timeline */
+.curriculum-week {
+  display: flex;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+.curriculum-week:last-child { border-bottom: none; }
+.week-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+  background: rgba(108,99,255,0.1);
+  border: 1px solid rgba(108,99,255,0.2);
+  border-radius: 6px;
+  padding: 4px 10px;
+  height: fit-content;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.week-content { flex: 1; }
+.week-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.week-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.topic-pill {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+/* Floating orbs */
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.12;
+}
+.orb1 { width: 400px; height: 400px; background: var(--accent); top: -100px; left: -100px; }
+.orb2 { width: 300px; height: 300px; background: var(--accent2); bottom: 100px; right: -50px; }
+.orb3 { width: 200px; height: 200px; background: var(--accent3); top: 50%; left: 50%; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  nav { padding: 0 20px; }
+  .hero { padding: 50px 20px 40px; }
+  main { padding: 40px 20px; }
+  .output-types { grid-template-columns: repeat(3, 1fr); }
+  .content-grid.two-col { grid-template-columns: 1fr; }
+  .content-grid.three-col { grid-template-columns: 1fr; }
+  .game-options { grid-template-columns: 1fr; }
+  h1 { letter-spacing: -1px; }
+}
+
+/* Copy btn */
+.copy-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font);
+  transition: all 0.15s;
+}
+.copy-btn:hover { color: var(--text); border-color: var(--muted); }
+
+/* Progress bar */
+.progress-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<nav>
+  <div class="logo">PyTeach ✦</div>
+  <div class="nav-pills">
+    <button class="nav-pill active" onclick="showSection('generate')">Generate</button>
+    <button class="nav-pill" onclick="showSection('history')">History</button>
+  </div>
+</nav>
+
+<div id="generateSection">
+  <div class="hero">
+    <div class="hero-eyebrow">AI-Powered Python Teaching</div>
+    <h1>Turn topics into<br><span>full lessons</span></h1>
+    <p class="hero-sub">Type any Python topic. Get curriculum, slides, lessons, games, and lectures — ready to teach.</p>
+  </div>
+
+  <div class="input-container">
+    <div class="topic-input-wrap">
+      <div class="input-label">What do you want to teach?</div>
+      <textarea id="topicInput" rows="3" placeholder="e.g. Python lists and loops, functions and scope, object-oriented programming basics..."></textarea>
+      <div class="input-row">
+        <div class="audience-toggle">
+          <span style="font-size:13px;color:var(--muted);margin-right:4px;align-self:center">For:</span>
+          <button class="aud-btn active" data-aud="kids" onclick="setAudience(this)">Kids</button>
+          <button class="aud-btn" data-aud="adults" onclick="setAudience(this)">Adults</button>
+          <button class="aud-btn" data-aud="both" onclick="setAudience(this)">Both</button>
+        </div>
+        <button class="generate-btn" id="generateBtn" onclick="generateContent()">
+          <span class="btn-icon">⚡</span> Generate
+        </button>
+      </div>
+    </div>
+
+    <div class="output-types" style="margin-top:12px">
+      <div class="type-card active" data-type="curriculum" onclick="toggleType(this)">
+        <div class="type-check">✓</div>
+        <div class="type-icon">🗺️</div>
+        <div class="type-label">Curriculum</div>
+      </div>
+      <div class="type-card active" data-type="lesson" onclick="toggleType(this)">
+        <div class="type-check">✓</div>
+        <div class="type-icon">📖</div>
+        <div class="type-label">Lesson</div>
+      </div>
+      <div class="type-card active" data-type="ppt" onclick="toggleType(this)">
+        <div class="type-check">✓</div>
+        <div class="type-icon">🎨</div>
+        <div class="type-label">Slides</div>
+      </div>
+      <div class="type-card active" data-type="game" onclick="toggleType(this)">
+        <div class="type-check">✓</div>
+        <div class="type-icon">🎮</div>
+        <div class="type-label">Games</div>
+      </div>
+      <div class="type-card active" data-type="lecture" onclick="toggleType(this)">
+        <div class="type-check">✓</div>
+        <div class="type-icon">🎙️</div>
+        <div class="type-label">Lecture</div>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <!-- Loading -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="loading-ring"></div>
+      <div class="loading-text">Generating your materials...</div>
+      <div class="loading-status" id="loadingStatus">Crafting curriculum</div>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🐍</div>
+      <div class="empty-title">Ready to teach Python</div>
+      <div class="empty-sub">Enter a topic above to generate your complete teaching kit</div>
+    </div>
+
+    <!-- Output -->
+    <div id="outputSection">
+      <div class="output-header">
+        <div>
+          <div class="output-title" id="outputTitle">Python Lists</div>
+          <div style="font-size:14px;color:var(--muted);margin-top:4px" id="outputMeta"></div>
+        </div>
+        <div class="output-actions">
+          <button class="action-btn" onclick="regenerate()">↻ Regenerate</button>
+          <button class="action-btn primary" onclick="copyAll()">⬇ Copy All</button>
+        </div>
+      </div>
+
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs" id="tabsContainer"></div>
+
+      <!-- Tab panels -->
+      <div id="panelsContainer"></div>
+    </div>
+  </main>
+</div>
+
+<div id="historySection" style="display:none">
+  <main>
+    <h2 style="font-family:var(--display);font-size:28px;font-weight:700;margin-bottom:24px">Generated Lessons</h2>
+    <div id="historyList">
+      <div class="empty-state">
+        <div class="empty-icon">📚</div>
+        <div class="empty-title">No lessons yet</div>
+        <div class="empty-sub">Generate your first lesson to see it here</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+let currentAudience = 'kids';
+let activeTypes = new Set(['curriculum','lesson','ppt','game','lecture']);
+let lastGenerated = null;
+const history = [];
+
+function showSection(s) {
+  document.getElementById('generateSection').style.display = s === 'generate' ? 'block' : 'none';
+  document.getElementById('historySection').style.display = s === 'history' ? 'block' : 'none';
+  document.querySelectorAll('.nav-pill').forEach((p,i) => {
+    p.classList.toggle('active', (i===0&&s==='generate')||(i===1&&s==='history'));
+  });
+  if (s === 'history') renderHistory();
+}
+
+function setAudience(btn) {
+  document.querySelectorAll('.aud-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentAudience = btn.dataset.aud;
+}
+
+function toggleType(card) {
+  const t = card.dataset.type;
+  if (activeTypes.has(t)) {
+    if (activeTypes.size <= 1) return;
+    activeTypes.delete(t);
+    card.classList.remove('active');
+  } else {
+    activeTypes.add(t);
+    card.classList.add('active');
+  }
+}
+
+function setProgress(p) {
+  document.getElementById('progressFill').style.width = p + '%';
+}
+
+const statusMessages = [
+  'Crafting curriculum', 'Building lesson plan', 'Designing slides',
+  'Creating games', 'Writing lecture script', 'Polishing content', 'Almost ready'
+];
+let statusIdx = 0;
+let statusInterval;
+
+function startLoadingStatus() {
+  statusIdx = 0;
+  document.getElementById('loadingStatus').textContent = statusMessages[0];
+  statusInterval = setInterval(() => {
+    statusIdx = (statusIdx + 1) % statusMessages.length;
+    document.getElementById('loadingStatus').textContent = statusMessages[statusIdx];
+  }, 1800);
+}
+
+function stopLoadingStatus() { clearInterval(statusInterval); }
+
+async function generateContent() {
+  const topic = document.getElementById('topicInput').value.trim();
+  if (!topic) {
+    document.getElementById('topicInput').focus();
+    document.getElementById('topicInput').style.borderBottom = '2px solid var(--accent2)';
+    setTimeout(() => { document.getElementById('topicInput').style.borderBottom = ''; }, 1500);
+    return;
+  }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:inline-block;animation:spin 0.8s linear infinite">⟳</span> Generating...';
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('outputSection').classList.remove('visible');
+  document.getElementById('loadingOverlay').classList.add('active');
+  setProgress(5);
+  startLoadingStatus();
+
+  const types = [...activeTypes];
+  const typesStr = types.join(', ');
+
+  const systemPrompt = `You are PyTeach, an expert Python teacher who creates engaging, well-structured educational materials. Generate comprehensive teaching content.
+
+IMPORTANT: Always respond with valid JSON only. No markdown fences, no extra text.
+
+The JSON structure must be:
+{
+  "topic": "topic name",
+  "audience": "audience description",
+  "curriculum": { ... },  // only if requested
+  "lesson": { ... },       // only if requested
+  "ppt": { ... },          // only if requested
+  "game": { ... },         // only if requested
+  "lecture": { ... }       // only if requested
+}
+
+For CURRICULUM:
+{
+  "overview": "1-2 sentence description",
+  "duration": "e.g. 4 weeks",
+  "weeks": [
+    { "week": 1, "title": "Week title", "topics": ["topic1","topic2","topic3"], "objective": "What students learn" }
+  ]
+}
+
+For LESSON (3-4 sections):
+{
+  "duration": "45 minutes",
+  "objectives": ["obj1","obj2","obj3"],
+  "sections": [
+    {
+      "title": "Section title",
+      "type": "concept|code|exercise",
+      "content": "Explanation text with <code>inline code</code>",
+      "code_example": "# Python code here\nprint('hello')",
+      "exercise": "Optional exercise description"
+    }
+  ],
+  "summary": "Lesson summary"
+}
+
+For PPT (5-6 slides):
+{
+  "slides": [
+    {
+      "title": "Slide title",
+      "type": "intro|concept|code|exercise|summary",
+      "bullets": ["point 1","point 2","point 3"],
+      "code": "# optional code snippet",
+      "speaker_notes": "What to say"
+    }
+  ]
+}
+
+For GAME (3 different game activities):
+{
+  "activities": [
+    {
+      "type": "quiz|debug|fill_blank",
+      "title": "Activity title",
+      "question": "Question or instruction",
+      "code": "# code if needed",
+      "options": ["A","B","C","D"],
+      "answer": "correct answer or index",
+      "explanation": "Why this is correct"
+    }
+  ]
+}
+
+For LECTURE (speaking script):
+{
+  "duration": "30 minutes",
+  "intro": "Opening hook (2-3 sentences)",
+  "sections": [
+    {
+      "title": "Section title",
+      "duration": "X minutes",
+      "script": "What to say (3-5 sentences)",
+      "key_points": ["point1","point2"],
+      "demo": "Optional: what to demo/type live"
+    }
+  ],
+  "closing": "Closing statement",
+  "qa_tips": ["Common question 1 + brief answer","Common question 2 + brief answer"]
+}`;
+
+  const userPrompt = `Create Python teaching materials for the topic: "${topic}"
+Audience: ${currentAudience === 'kids' ? 'Kids (8-14 years old) - use fun analogies, simple language, relatable examples' : currentAudience === 'adults' ? 'Adults / beginners - professional tone, real-world examples' : 'Mixed audience (kids and adults) - inclusive language, layered examples'}
+Generate these content types: ${typesStr}
+Make content practical, engaging, and immediately usable in a classroom.`;
+
+  try {
+    setProgress(20);
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+
+    setProgress(70);
+    const data = await res.json();
+    const text = data.content.map(b => b.text || '').join('');
+    const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+    const parsed = JSON.parse(clean);
+    setProgress(90);
+
+    lastGenerated = parsed;
+    history.unshift({ topic, audience: currentAudience, data: parsed, time: new Date() });
+
+    stopLoadingStatus();
+    setProgress(100);
+    document.getElementById('loadingOverlay').classList.remove('active');
+    renderOutput(parsed, topic);
+
+  } catch(e) {
+    stopLoadingStatus();
+    document.getElementById('loadingOverlay').classList.remove('active');
+    document.getElementById('emptyState').style.display = 'block';
+    document.getElementById('emptyState').innerHTML = `<div class="empty-icon">⚠️</div><div class="empty-title">Generation failed</div><div class="empty-sub">${e.message}</div>`;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<span class="btn-icon">⚡</span> Generate';
+}
+
+function renderOutput(data, topic) {
+  document.getElementById('outputTitle').textContent = data.topic || topic;
+  document.getElementById('outputMeta').textContent =
+    `${currentAudience === 'kids' ? '👧 Kids' : currentAudience === 'adults' ? '👨‍💻 Adults' : '👥 Mixed'} · ${[...activeTypes].join(' · ')}`;
+
+  const tabs = document.getElementById('tabsContainer');
+  const panels = document.getElementById('panelsContainer');
+  tabs.innerHTML = '';
+  panels.innerHTML = '';
+
+  const typeConfig = {
+    curriculum: { label: '🗺️ Curriculum', render: renderCurriculum },
+    lesson:     { label: '📖 Lesson',     render: renderLesson },
+    ppt:        { label: '🎨 Slides',     render: renderPPT },
+    game:       { label: '🎮 Games',      render: renderGame },
+    lecture:    { label: '🎙️ Lecture',   render: renderLecture },
+  };
+
+  let first = true;
+  for (const type of activeTypes) {
+    if (!data[type] || !typeConfig[type]) continue;
+    const id = 'panel-' + type;
+
+    const tab = document.createElement('button');
+    tab.className = 'tab' + (first ? ' active' : '');
+    tab.textContent = typeConfig[type].label;
+    tab.onclick = () => switchTab(type);
+    tab.dataset.tab = type;
+    tabs.appendChild(tab);
+
+    const panel = document.createElement('div');
+    panel.className = 'tab-panel' + (first ? ' active' : '');
+    panel.id = id;
+    panel.innerHTML = typeConfig[type].render(data[type]);
+    panels.appendChild(panel);
+
+    first = false;
+  }
+
+  document.getElementById('outputSection').classList.add('visible');
+  document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Wire up game interactions after render
+  setTimeout(wireGameInteractions, 100);
+}
+
+function switchTab(type) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === type));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + type));
+  if (type === 'game') setTimeout(wireGameInteractions, 50);
+}
+
+function renderCurriculum(c) {
+  const weeks = (c.weeks || []).map(w => `
+    <div class="curriculum-week">
+      <div class="week-label">Week ${w.week}</div>
+      <div class="week-content">
+        <div class="week-title">${w.title}</div>
+        <div style="font-size:14px;color:var(--muted);margin-bottom:10px;line-height:1.5">${w.objective || ''}</div>
+        <div class="week-topics">${(w.topics||[]).map(t=>`<span class="topic-pill">${t}</span>`).join('')}</div>
+      </div>
+    </div>`).join('');
+
+  return `<div class="content-card">
+    <div class="card-header">
+      <div class="card-tag"><div class="tag-dot" style="background:var(--accent)"></div>Curriculum Overview</div>
+      <div style="font-size:13px;color:var(--muted)">${c.duration || ''}</div>
+    </div>
+    <div class="card-body">
+      <p style="font-size:15px;color:var(--muted);margin-bottom:24px;line-height:1.6">${c.overview || ''}</p>
+      ${weeks}
+    </div>
+  </div>`;
+}
+
+function renderLesson(l) {
+  const sections = (l.sections || []).map((s,i) => {
+    const code = s.code_example ? `<pre><code>${escHtml(s.code_example)}</code></pre>` : '';
+    const ex = s.exercise ? `<div style="background:rgba(67,232,216,0.06);border:1px solid rgba(67,232,216,0.2);border-radius:8px;padding:14px;margin-top:12px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent3);margin-bottom:6px">✏️ Exercise</div><div style="font-size:14px;color:#c0c0d8">${s.exercise}</div></div>` : '';
+    return `<div class="content-card" style="animation-delay:${i*0.08}s">
+      <div class="card-header">
+        <div class="card-tag">
+          <div class="tag-dot" style="background:${['var(--accent)','var(--accent3)','var(--accent2)','var(--warning)'][i%4]}"></div>
+          ${s.title}
+        </div>
+        <span style="font-size:11px;background:var(--surface);padding:3px 8px;border-radius:4px;color:var(--muted);border:1px solid var(--border)">${s.type||'concept'}</span>
+      </div>
+      <div class="card-body">
+        <div class="md-content"><p>${s.content||''}</p></div>
+        ${code}
+        ${ex}
+      </div>
+    </div>`;
+  }).join('');
+
+  const objs = (l.objectives||[]).map(o=>`<li>${o}</li>`).join('');
+
+  return `
+    <div class="content-card" style="margin-bottom:20px">
+      <div class="card-header">
+        <div class="card-tag"><div class="tag-dot" style="background:var(--accent)"></div>Learning Objectives</div>
+        <div style="font-size:13px;color:var(--muted)">⏱ ${l.duration||'45 min'}</div>
+      </div>
+      <div class="card-body"><ul class="md-content" style="padding-left:20px">${objs}</ul></div>
+    </div>
+    <div class="content-grid two-col">${sections}</div>
+    ${l.summary?`<div class="content-card" style="margin-top:20px"><div class="card-header"><div class="card-tag"><div class="tag-dot" style="background:var(--success)"></div>Lesson Summary</div></div><div class="card-body"><p style="font-size:15px;color:#c0c0d8;line-height:1.7">${l.summary}</p></div></div>`:''}`;
+}
+
+function renderPPT(p) {
+  const slides = (p.slides||[]).map((s,i) => {
+    const bullets = (s.bullets||[]).map(b=>`• ${b}`).join('\n');
+    const code = s.code ? `\n\n${s.code}` : '';
+    return `<div class="slide-preview" onclick="showSlideModal(${i})" title="Click to view speaker notes">
+      <div class="slide-num">${String(i+1).padStart(2,'0')}</div>
+      <div class="slide-title">${s.title}</div>
+      <div class="slide-bullet">${bullets}${code}</div>
+      <div class="slide-accent-bar"></div>
+    </div>`;
+  }).join('');
+
+  return `
+    <div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:14px;color:var(--muted)">${(p.slides||[]).length} slides ready</span>
+      <button class="action-btn" onclick="copySlides()">⬇ Copy Slide Text</button>
+    </div>
+    <div class="slides-grid">${slides}</div>
+    <div id="slideModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="closeSlideModal(event)">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:36px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto" onclick="event.stopPropagation()">
+        <div id="slideModalContent"></div>
+        <button onclick="document.getElementById('slideModal').style.display='none'" style="margin-top:20px;background:var(--surface);border:1px solid var(--border);color:var(--muted);padding:8px 20px;border-radius:8px;cursor:pointer;font-family:var(--font)">Close</button>
+      </div>
+    </div>`;
+}
+
+function renderGame(g) {
+  const typeColors = { quiz:'badge-quiz', debug:'badge-debug', fill_blank:'badge-fill', challenge:'badge-challenge' };
+  const typeIcons = { quiz:'🧠', debug:'🐛', fill_blank:'✏️', challenge:'⚡' };
+
+  const activities = (g.activities||[]).map((a,i) => {
+    let body = '';
+    if (a.type === 'quiz') {
+      const opts = (a.options||[]).map((o,j) => `<div class="game-opt" data-idx="${j}" data-activity="${i}" onclick="checkAnswer(this,${i},${j})">${o}</div>`).join('');
+      body = `<div class="game-q">${a.question}</div><div class="game-options">${opts}</div>`;
+    } else if (a.type === 'fill_blank' || a.type === 'debug') {
+      body = `<div class="game-q">${a.question}</div>
+        <div class="code-fill">${escHtml(a.code||'').replace(/_____/g,'<span class="fill-blank" onclick="revealFill(this)" title="Click to reveal">_____</span>')}</div>`;
+    } else {
+      body = `<div class="game-q">${a.question}</div>
+        ${a.code?`<div class="code-fill">${escHtml(a.code)}</div>`:''}
+        ${(a.options||[]).length?`<div class="game-options">${(a.options).map((o,j)=>`<div class="game-opt" data-idx="${j}" data-activity="${i}" onclick="checkAnswer(this,${i},${j})">${o}</div>`).join('')}</div>`:''}`;
+    }
+    return `<div class="game-card" data-activity="${i}" data-answer="${a.answer}" data-explanation="${escHtml(a.explanation||'')}">
+      <div class="game-badge ${typeColors[a.type]||'badge-quiz'}">${typeIcons[a.type]||'🎯'} ${a.type?.replace('_',' ')}</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:12px">${a.title}</div>
+      ${body}
+      <div class="explanation-box" style="display:none;margin-top:12px;padding:12px;background:rgba(67,232,160,0.06);border:1px solid rgba(67,232,160,0.2);border-radius:8px;font-size:13px;color:var(--success);line-height:1.5"></div>
+    </div>`;
+  }).join('');
+
+  return `<div style="max-width:700px">${activities}</div>`;
+}
+
+function renderLecture(l) {
+  const sections = (l.sections||[]).map((s,i) => `
+    <div class="step">
+      <div class="step-num">${i+1}</div>
+      <div class="step-content">
+        <div class="step-title">${s.title} <span style="font-size:12px;color:var(--muted);font-weight:400;margin-left:8px">⏱ ${s.duration||''}</span></div>
+        <div class="step-desc" style="margin-bottom:8px">${s.script||''}</div>
+        ${(s.key_points||[]).length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">${s.key_points.map(k=>`<span class="topic-pill" style="background:rgba(108,99,255,0.1);border-color:rgba(108,99,255,0.2);color:var(--accent)">${k}</span>`).join('')}</div>` : ''}
+        ${s.demo?`<div style="font-size:13px;background:var(--code-bg);border:1px solid var(--border);border-radius:6px;padding:10px 14px;color:var(--accent3)">💻 Demo: ${s.demo}</div>`:''}
+      </div>
+    </div>`).join('');
+
+  const qa = (l.qa_tips||[]).map(q=>`<div style="padding:12px 0;border-bottom:1px solid var(--border);font-size:14px;color:#c0c0d8;line-height:1.5">${q}</div>`).join('');
+
+  return `<div class="content-card">
+    <div class="card-header">
+      <div class="card-tag"><div class="tag-dot" style="background:var(--accent2)"></div>Lecture Script</div>
+      <div style="font-size:13px;color:var(--muted)">⏱ ${l.duration||'30 min'}</div>
+    </div>
+    <div class="card-body">
+      ${l.intro?`<div class="lecture-section"><h3>Opening</h3><p style="font-size:15px;font-style:italic;color:var(--muted);line-height:1.7;border-left:3px solid var(--accent2);padding-left:16px">"${l.intro}"</p></div>`:''}
+      <div class="lecture-section"><h3>Script</h3><div class="steps">${sections}</div></div>
+      ${l.closing?`<div class="lecture-section"><h3>Closing</h3><p style="font-size:15px;font-style:italic;color:var(--muted);line-height:1.7;border-left:3px solid var(--success);padding-left:16px">"${l.closing}"</p></div>`:''}
+      ${qa?`<div class="lecture-section"><h3>Q&A Tips</h3>${qa}</div>`:''}
+    </div>
+  </div>`;
+}
+
+// Game interactivity
+let gameData = null;
+function wireGameInteractions() {}
+
+function checkAnswer(el, actIdx, optIdx) {
+  const card = document.querySelector(`.game-card[data-activity="${actIdx}"]`);
+  if (!card) return;
+  const correctAnswer = card.dataset.answer;
+  const explanation = card.dataset.explanation;
+
+  const opts = card.querySelectorAll('.game-opt');
+  opts.forEach(o => { o.style.pointerEvents = 'none'; });
+
+  // Try numeric index match, or text match
+  const isCorrect = String(optIdx) === String(correctAnswer) ||
+    el.textContent.trim() === correctAnswer ||
+    optIdx === parseInt(correctAnswer);
+
+  el.classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) {
+    // Highlight correct one
+    opts.forEach((o, j) => {
+      if (String(j) === String(correctAnswer) || parseInt(correctAnswer) === j) o.classList.add('correct');
+    });
+  }
+
+  const expBox = card.querySelector('.explanation-box');
+  expBox.textContent = (isCorrect ? '✓ Correct! ' : '✗ Not quite. ') + explanation;
+  expBox.style.display = 'block';
+  expBox.style.background = isCorrect ? 'rgba(67,232,160,0.06)' : 'rgba(255,107,157,0.06)';
+  expBox.style.borderColor = isCorrect ? 'rgba(67,232,160,0.2)' : 'rgba(255,107,157,0.2)';
+  expBox.style.color = isCorrect ? 'var(--success)' : 'var(--accent2)';
+}
+
+function revealFill(el) {
+  el.classList.add('filled');
+  const card = el.closest('.game-card');
+  const answer = card?.dataset.answer;
+  if (answer) el.textContent = answer;
+  const expBox = card?.querySelector('.explanation-box');
+  if (expBox) {
+    expBox.textContent = '✓ ' + (card.dataset.explanation || 'Answer revealed!');
+    expBox.style.display = 'block';
+  }
+}
+
+let allSlides = [];
+function showSlideModal(idx) {
+  if (!lastGenerated?.ppt?.slides) return;
+  const s = lastGenerated.ppt.slides[idx];
+  allSlides = lastGenerated.ppt.slides;
+  const modal = document.getElementById('slideModal');
+  document.getElementById('slideModalContent').innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:var(--mono)">SLIDE ${idx+1} of ${allSlides.length}</div>
+    <h2 style="font-size:22px;font-weight:700;margin-bottom:16px">${s.title}</h2>
+    ${(s.bullets||[]).map(b=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:15px;color:#c0c0d8">• ${b}</div>`).join('')}
+    ${s.code?`<pre style="background:var(--code-bg);border-radius:8px;padding:16px;margin-top:16px;font-size:13px;overflow-x:auto"><code>${escHtml(s.code)}</code></pre>`:''}
+    ${s.speaker_notes?`<div style="margin-top:20px;padding:16px;background:rgba(255,184,77,0.06);border:1px solid rgba(255,184,77,0.2);border-radius:8px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--warning);margin-bottom:8px">🎙 Speaker Notes</div><p style="font-size:14px;color:#c0c0d8;line-height:1.7">${s.speaker_notes}</p></div>`:''}`;
+  modal.style.display = 'flex';
+}
+
+function closeSlideModal(e) {
+  if (e.target.id === 'slideModal') document.getElementById('slideModal').style.display = 'none';
+}
+
+function copySlides() {
+  if (!lastGenerated?.ppt?.slides) return;
+  const text = lastGenerated.ppt.slides.map((s,i) =>
+    `SLIDE ${i+1}: ${s.title}\n${(s.bullets||[]).map(b=>'• '+b).join('\n')}${s.code?'\n\n'+s.code:''}\n\nSpeaker Notes: ${s.speaker_notes||''}\n`
+  ).join('\n---\n');
+  navigator.clipboard.writeText(text).then(() => alert('Slides copied to clipboard!'));
+}
+
+function copyAll() {
+  if (!lastGenerated) return;
+  navigator.clipboard.writeText(JSON.stringify(lastGenerated, null, 2))
+    .then(() => alert('All content copied as JSON!'));
+}
+
+function regenerate() {
+  document.getElementById('outputSection').classList.remove('visible');
+  generateContent();
+}
+
+function escHtml(str) {
+  return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (history.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div><div class="empty-title">No lessons yet</div><div class="empty-sub">Generate your first lesson to see it here</div></div>`;
+    return;
+  }
+  list.innerHTML = history.map((h,i) => `
+    <div class="content-card" style="margin-bottom:16px;cursor:pointer" onclick="loadHistory(${i})">
+      <div class="card-body">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:16px;font-weight:600;margin-bottom:4px">${h.data.topic}</div>
+            <div style="font-size:13px;color:var(--muted)">${h.audience} · ${h.time.toLocaleTimeString()}</div>
+          </div>
+          <button class="action-btn">Load →</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function loadHistory(i) {
+  const h = history[i];
+  document.getElementById('topicInput').value = h.topic;
+  currentAudience = h.audience;
+  showSection('generate');
+  renderOutput(h.data, h.topic);
+}
+
+// Quick starter buttons
+document.addEventListener('DOMContentLoaded', () => {
+  const starters = [
+    'Python variables and data types',
+    'For loops and while loops',
+    'Functions and parameters',
+    'Lists, tuples, and dictionaries',
+    'Object-oriented programming',
+    'File reading and writing',
+  ];
+  const container = document.createElement('div');
+  container.style.cssText = 'max-width:700px;margin:16px auto 0;display:flex;flex-wrap:wrap;gap:8px;justify-content:center';
+  starters.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'topic-pill';
+    btn.style.cssText = 'cursor:pointer;transition:all 0.15s;background:var(--card);border-color:var(--border);color:var(--muted)';
+    btn.textContent = s;
+    btn.onmouseover = () => { btn.style.borderColor = 'var(--accent)'; btn.style.color = 'var(--accent)'; };
+    btn.onmouseout = () => { btn.style.borderColor = 'var(--border)'; btn.style.color = 'var(--muted)'; };
+    btn.onclick = () => {
+      document.getElementById('topicInput').value = s;
+      document.getElementById('topicInput').focus();
+    };
+    container.appendChild(btn);
+  });
+  document.querySelector('.input-container').after(container);
+});
+</script>
+</body>
+</html>
