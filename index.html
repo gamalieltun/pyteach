@@ -733,6 +733,52 @@ main {
 }
 .copy-btn:hover { color: var(--text); border-color: var(--muted); }
 
+/* API key banner */
+.apikey-banner {
+  background: var(--card);
+  border: 1px solid rgba(255,184,77,0.3);
+  border-radius: 12px;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0;
+  flex-wrap: wrap;
+}
+.apikey-banner.set { border-color: rgba(67,232,160,0.3); }
+.apikey-icon { font-size: 18px; flex-shrink: 0; }
+.apikey-label { font-size: 13px; color: var(--muted); flex-shrink: 0; }
+.apikey-input {
+  flex: 1;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.apikey-input:focus { border-color: var(--accent); }
+.apikey-save {
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: rgba(67,232,160,0.15);
+  color: var(--success);
+  font-family: var(--font);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.apikey-save:hover { background: rgba(67,232,160,0.25); }
+.apikey-status { font-size: 12px; color: var(--success); display: none; }
+.apikey-banner.set .apikey-status { display: block; }
+
 /* Progress bar */
 .progress-bar {
   height: 3px;
@@ -772,6 +818,14 @@ main {
   </div>
 
   <div class="input-container">
+    <div class="apikey-banner" id="apikeyBanner">
+      <span class="apikey-icon">🔑</span>
+      <span class="apikey-label">Groq API Key</span>
+      <input class="apikey-input" id="apikeyInput" type="password" placeholder="gsk_... (free at console.groq.com)" autocomplete="off" />
+      <button class="apikey-save" onclick="saveApiKey()">Save Key</button>
+      <span class="apikey-status">✓ Key saved</span>
+    </div>
+    <div style="height:10px"></div>
     <div class="topic-input-wrap">
       <div class="input-label">What do you want to teach?</div>
       <textarea id="topicInput" rows="3" placeholder="e.g. Python lists and loops, functions and scope, object-oriented programming basics..."></textarea>
@@ -876,6 +930,37 @@ let currentAudience = 'kids';
 let activeTypes = new Set(['curriculum','lesson','ppt','game','lecture']);
 let lastGenerated = null;
 const history = [];
+
+function saveApiKey() {
+  const val = document.getElementById('apikeyInput').value.trim();
+  if (!val) return;
+  localStorage.setItem('groq_api_key', val);
+  document.getElementById('apikeyBanner').classList.add('set');
+  document.getElementById('apikeyInput').value = '•'.repeat(Math.min(val.length, 24));
+}
+
+function loadSavedKey() {
+  const saved = localStorage.getItem('groq_api_key');
+  if (saved) {
+    document.getElementById('apikeyInput').value = '•'.repeat(Math.min(saved.length, 24));
+    document.getElementById('apikeyBanner').classList.add('set');
+  }
+}
+
+// Allow Enter key in API key input
+document.addEventListener('DOMContentLoaded', () => {
+  loadSavedKey();
+  document.getElementById('apikeyInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveApiKey();
+  });
+  // Clear masked value on focus so user can retype
+  document.getElementById('apikeyInput').addEventListener('focus', e => {
+    if (e.target.value.includes('•')) e.target.value = '';
+  });
+  document.getElementById('apikeyInput').addEventListener('blur', e => {
+    if (!e.target.value) loadSavedKey();
+  });
+});
 
 function showSection(s) {
   document.getElementById('generateSection').style.display = s === 'generate' ? 'block' : 'none';
@@ -1040,20 +1125,31 @@ Make content practical, engaging, and immediately usable in a classroom.`;
 
   try {
     setProgress(20);
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const apiKey = localStorage.getItem('groq_api_key') || '';
+    if (!apiKey) {
+      throw new Error('Please enter your Groq API key above first. Get one free at console.groq.com');
+    }
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey
+      },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'llama-3.3-70b-versatile',
         max_tokens: 4000,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }]
+        temperature: 0.7,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
       })
     });
 
     setProgress(70);
     const data = await res.json();
-    const text = data.content.map(b => b.text || '').join('');
+    if (data.error) throw new Error(data.error.message || 'Groq API error');
+    const text = data.choices[0].message.content;
     const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
     const parsed = JSON.parse(clean);
     setProgress(90);
@@ -1384,8 +1480,8 @@ function loadHistory(i) {
   renderOutput(h.data, h.topic);
 }
 
-// Quick starter buttons
-document.addEventListener('DOMContentLoaded', () => {
+// Quick starter buttons — added after the key/input block loads
+function addStarterButtons() {
   const starters = [
     'Python variables and data types',
     'For loops and while loops',
@@ -1410,7 +1506,8 @@ document.addEventListener('DOMContentLoaded', () => {
     container.appendChild(btn);
   });
   document.querySelector('.input-container').after(container);
-});
+}
+addStarterButtons();
 </script>
 </body>
 </html>
